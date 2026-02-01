@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
 type Update = {
@@ -82,7 +82,7 @@ function App() {
     {angle: 40, dist: 30, rule: 'mul', a: 3n, b: 1n},
   ]
 
-  const [rules, setRules] = useState(collatz)
+  const [rules] = useState(collatz)
   const [drawPerFrame, setDrawPerFrame] = useState(100)
   const [maxValue, setMaxValue] = useState(1000n)
   const [seed, setSeed] = useState(1n)
@@ -135,6 +135,16 @@ function App() {
       <input name="max" type="number" className="short" value={maxValue.toString()} min="0" onChange={v=>setMaxValue(BigInt(v.target.value))}/>
       <label htmlFor="seed">Edges per second:</label>
       <input name="seed" type="number" className="short" value={(60 * drawPerFrame).toString()} min="0" onChange={v=>setDrawPerFrame(parseInt(v.target.value) / 60)}/>
+      <ul>
+        {rules.map((rule, modcls) => {
+          if (rule.rule == 'div') {
+            return (<li>v<sub>n+1</sub> = v<sub>n</sub> / {rule.d} if v<sub>n</sub> ≡ {modcls} (mod {rules.length})</li>)
+          }
+          if (rule.rule == 'mul') {
+            return (<li>v<sub>n+1</sub> = {rule.a}v<sub>n</sub> + {rule.b} if v<sub>n</sub> ≡ {modcls} (mod {rules.length})</li>)
+          }
+        })}
+      </ul>
     </div>
   );
 }
