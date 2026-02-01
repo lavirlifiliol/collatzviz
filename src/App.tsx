@@ -97,6 +97,27 @@ function updateRuleAt<U extends Rule, T extends keyof U>(rules: U[], i: number, 
   return rules.map((v, j) => j == i?{...v, [key]:nvalue}:v)
 }
 
+function Tutorial() {
+  return (<>
+    <button popoverTarget='tutorial' popoverTargetAction='toggle'>Help</button>
+    <dialog popover="manual" id="tutorial" style={{textAlign: "left", border: "2px solid darkgrey", maxWidth: "80%"}}>
+      <h2>Collatz Visualiser</h2>
+      <p>This application draws trees starting from some number (set via Seed) on the grey rectangle in the middle of your screen, such that the children of a node are the numbers that would result in that number if
+        handled via the configured rules. For example, under the standard collatz conjecture rules, 10 would have the children 20 and 3.
+      </p>
+      <p>Click on the canvas to choose the placement for the seed number, and tree will grow from it (assuming you didn't pick a Seed and rules that doesn't really go anywhere)</p>
+      <p>Cutoff specifies the upper bound of children to draw. Any nodes of a value greater than this will not have their children drawn</p>
+      <p>Nodes per second places a limit on the number of nodes to process every second, ensuring your browser doesn't crash on complex trees (it can still happen, but it takes a truly absurd tree)</p>
+      <p>Units per side specifies how many pixels the resulting image will be per side</p>
+      <p>Number of rules defines the divisor whose remainder your sequence uses</p>
+      <p>Each rule is either a multiplication rule in the form ax + b, or a division rule in the form x/a. You can swap between them by clicking the <span className="swap">v<sub>n</sub></span> </p>
+      <p>Each child is rotated and offset from its parent by some angle and some distance (in the same units as Unit per side)</p>
+      <p>Use the browser back and forward buttons to undo and redo actions</p>
+      <button popoverTarget='tutorial' popoverTargetAction='hide'>close</button>
+      </dialog>
+  </>)
+}
+
 function App() {
   const collatz: Rule[] = [
     {angle: -10, dist: 5, rule: 'div', d: 2},
@@ -195,9 +216,10 @@ function App() {
             setOrigin({x: (ev.clientX - bb.left) * fix, y: (ev.clientY - bb.top) * fix})
           }}/>
       </div>
+      <Tutorial />
       <NumericInput label="Seed:" value={seed} setValue={setSeed}/>
       <NumericInput label="Cutoff:" value={maxValue} setValue={setMaxValue}/>
-      <NumericInput label="Edges per second:" value={drawPerFrame * 60} setValue={v=>setDrawPerFrame(v/60)}/>
+      <NumericInput label="Nodes per second:" value={drawPerFrame * 60} setValue={v=>setDrawPerFrame(v/60)}/>
       <NumericInput label="Units per side:" value={dim} setValue={setDim}/>
       <NumericInput label="Number of rules:" value={rules.length} setValue={v=>{
         if (v < 2) return;
