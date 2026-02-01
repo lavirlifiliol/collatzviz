@@ -3,9 +3,9 @@ import './App.css'
 
 type Update = {
   // ax + b
-  rule: 'mul', a: bigint, b: bigint
+  rule: 'mul', a: number, b: number
 } | {
-  rule: 'div', d: bigint
+  rule: 'div', d: number
 }
 
 type Rule = {
@@ -14,7 +14,7 @@ type Rule = {
 } & Update
 
 type TreeNode = {
-  value: bigint,
+  value: number,
   angleHere: number,
   depth: number,
   x: number,
@@ -33,16 +33,16 @@ function* treeChildren(rules: Rule[], parent: TreeNode) {
   for (const [i, rule] of rules.entries()) {
     if (rule.rule == 'div') {
       let nValue = parent.value * rule.d;
-      if (nValue % BigInt(rules.length) != BigInt(i)) {
+      if (nValue % rules.length != i) {
         continue
       }
       let nAngle = parent.angleHere + rule.angle
       yield {value: nValue, angleHere: nAngle, depth: parent.depth + 1, ...shiftPoint(parent, nAngle, rule.dist)}
     }
     if (rule.rule == 'mul') {
-      if ((parent.value - rule.b) % rule.a == 0n) {
+      if ((parent.value - rule.b) % rule.a == 0) {
         let nValue = (parent.value - rule.b) / rule.a
-        if (nValue % BigInt(rules.length) != BigInt(i)) {
+        if (nValue % rules.length != i) {
           continue
         }
         let nAngle = parent.angleHere + rule.angle
@@ -58,7 +58,7 @@ function drawLine(from: TreeNode, to: TreeNode, ctx: CanvasRenderingContext2D) {
 
 }
 
-function treeAnimationFrame(rules: Rule[], maxDraw: number, maxValue: bigint, work: TreeNode[], canvas: CanvasRenderingContext2D, closed: Set<bigint>) {
+function treeAnimationFrame(rules: Rule[], maxDraw: number, maxValue: number, work: TreeNode[], canvas: CanvasRenderingContext2D, closed: Set<number>) {
   for (let i = 0; i < maxDraw && work.length; ++i) {
     const past = work.pop()!
     if (past.value >= maxValue) {
@@ -81,29 +81,43 @@ function NumericInput(props: {label: string, value: number, setValue: (v: number
   return (<label>{props.label}<input type="number" className="short" value={props.value} onChange={e=>props.setValue(parseInt(e.target.value))}/></label>)
 }
 
-function BigIntInput(props: {label: string, value: bigint, setValue: (v: bigint)=>void}): JSX.Element{
-  return (<label>{props.label}<input type="number" className="short" value={props.value.toString()} onChange={e=>props.setValue(BigInt(e.target.value))}/></label>)
-}
-
 function updateRuleAt<U extends Rule, T extends keyof U>(rules: U[], i: number, key: T, nvalue: U[T]): Rule[] {
   return rules.map((v, j) => j == i?{...v, [key]:nvalue}:v)
 }
 
 function App() {
   const collatz: Rule[] = [
-    {angle: -10, dist: 5, rule: 'div', d: 2n},
-    {angle: 20, dist: 20, rule: 'mul', a: 3n, b: 1n},
+    {angle: -10, dist: 5, rule: 'div', d: 2},
+    {angle: 20, dist: 20, rule: 'mul', a: 3, b: 1},
   ]
 
   const [rules, setRules] = useState(collatz)
   const [drawPerFrame, setDrawPerFrame] = useState(200)
-  const [maxValue, setMaxValue] = useState(10000n)
-  const [seed, setSeed] = useState(1n)
+  const [maxValue, setMaxValue] = useState(10000)
+  const [seed, setSeed] = useState(1)
   const [origin, setOrigin] = useState({x:100, y:700})
+  const fullState = [rules, drawPerFrame, maxValue, seed, origin]
+  const setFullState = (t: any) => {
+    setRules(t[0])
+    setDrawPerFrame(t[1])
+    setMaxValue(t[2])
+    setSeed(t[3])
+    setOrigin(t[4])
+  }
+
+  useEffect(() => {
+    let searchParams = new URLSearchParams(location.search)
+    let sharedState = searchParams.get("state")
+    if (sharedState) {
+      let json = atob(sharedState)
+      let fullState = JSON.parse(json)
+      setFullState(fullState)
+    }
+  }, [])
 
   useEffect(()=> {
     let work: TreeNode[] = [{value: seed, angleHere: 0, depth: 0, ...origin}];
-    let closed = new Set<bigint>()
+    let closed = new Set<number>()
     let handle: number = -1;
     const ctx = (document.getElementById("tree")! as HTMLCanvasElement).getContext("2d")!
     ctx.fillStyle = "lightgrey"
@@ -124,7 +138,25 @@ function App() {
         cancelAnimationFrame(handle)
       }
     }
-  }, [rules, maxValue, drawPerFrame, seed, origin])
+  }, fullState)
+
+  useEffect(() => {
+    const data = JSON.stringify(fullState)
+    const b64 = btoa(data)
+    const topData = JSON.stringify(history.state)
+    // ew
+    if (data != topData) {
+      history.pushState(fullState, "--", "?state="+b64)
+    }
+  }, fullState)
+
+  useEffect(() => {
+    const evListener = (ev: PopStateEvent) => {
+      setFullState(ev.state)
+    }
+    addEventListener("popstate", evListener)
+    return () => removeEventListener("popstate", evListener)
+  }, [])
 
   const DIM = 1080;
 
@@ -143,24 +175,24 @@ function App() {
             setOrigin({x: (ev.clientX - bb.left) * fix, y: (ev.clientY - bb.top) * fix})
           }}/>
       </div>
-      <BigIntInput label="Seed:" value={seed} setValue={setSeed}/>
-      <BigIntInput label="Cutoff:" value={maxValue} setValue={setMaxValue}/>
+      <NumericInput label="Seed:" value={seed} setValue={setSeed}/>
+      <NumericInput label="Cutoff:" value={maxValue} setValue={setMaxValue}/>
       <NumericInput label="Edges per second:" value={drawPerFrame * 60} setValue={v=>setDrawPerFrame(v/60)}/>
       <ul>
         {rules.map((rule, modcls) => {
           if (rule.rule == 'div') {
-            return (<li>
+            return (<li key={modcls}>
               v<sub>n+1</sub> = v<sub>n</sub>
-              <BigIntInput label=" / " value={rule.d} setValue={v=>setRules(updateRuleAt(rules as (Rule & {rule: 'div'})[], modcls, "d", v))}/>
+              <NumericInput label=" / " value={rule.d} setValue={v=>setRules(updateRuleAt(rules as (Rule & {rule: 'div'})[], modcls, "d", v))}/>
               if v<sub>n</sub> ≡ {modcls} (mod {rules.length}).
               <NumericInput label="Turn by " value={rule.angle} setValue={v=>setRules(updateRuleAt(rules, modcls, "angle", v))}/>°,
               and <NumericInput label="move by " value={rule.dist} setValue={v=>setRules(updateRuleAt(rules, modcls, "dist", v))}/>
             </li>)
           }
           if (rule.rule == 'mul') {
-            return (<li>v<sub>n+1</sub> 
-            <BigIntInput label=" = " value={rule.a} setValue={v=>setRules(updateRuleAt(rules as (Rule & {rule: 'mul'})[], modcls, "a", v))}/>v<sub>n</sub>
-            <BigIntInput label=" + " value={rule.b} setValue={v=>setRules(updateRuleAt(rules as (Rule & {rule: 'mul'})[], modcls, "b", v))}/>
+            return (<li key={modcls}>v<sub>n+1</sub> 
+            <NumericInput label=" = " value={rule.a} setValue={v=>setRules(updateRuleAt(rules as (Rule & {rule: 'mul'})[], modcls, "a", v))}/>v<sub>n</sub>
+            <NumericInput label=" + " value={rule.b} setValue={v=>setRules(updateRuleAt(rules as (Rule & {rule: 'mul'})[], modcls, "b", v))}/>
               if v<sub>n</sub> ≡ {modcls} (mod {rules.length}).
               <NumericInput label="Turn by " value={rule.angle} setValue={v=>setRules(updateRuleAt(rules, modcls, "angle", v))}/>°,
               and <NumericInput label="move by " value={rule.dist} setValue={v=>setRules(updateRuleAt(rules, modcls, "dist", v))}/>
