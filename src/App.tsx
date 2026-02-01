@@ -181,7 +181,7 @@ function App() {
 
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div>
       <div>
         <canvas 
           style={{ width: "70vmin", height: "70vmin", border: "1px solid darkgrey" }}
